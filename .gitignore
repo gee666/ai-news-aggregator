@@ -1,0 +1,19 @@
+.pi
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Env / secrets
+.env
+pi-auth/
+*.session
+
+# OS
+.DS_Store

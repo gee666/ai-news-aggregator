@@ -1,0 +1,10 @@
+accounts:
+  - platform: x
+    handle: OpenAI
+    entity_name: OpenAI
+    trust_level: official
+
+  - platform: x
+    handle: AnthropicAI
+    entity_name: Anthropic
+    trust_level: official

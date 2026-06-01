@@ -1,0 +1,1 @@
+"""News bot application package."""

@@ -1,0 +1,95 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-newsbot}
+      POSTGRES_USER: ${POSTGRES_USER:-newsbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-newsbot}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-newsbot} -d $${POSTGRES_DB:-newsbot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://newsbot:newsbot@postgres:5432/newsbot}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - models_cache:/models
+      - secrets:/secrets
+      - pi_config:/root/.pi/agent
+      - ${PI_HOST_AUTH_DIR:-./pi-auth}:/host_pi_auth:ro
+      - ./config:/config:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://newsbot:newsbot@postgres:5432/newsbot}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - models_cache:/models
+      - secrets:/secrets
+      - pi_config:/root/.pi/agent
+      - ${PI_HOST_AUTH_DIR:-./pi-auth}:/host_pi_auth:ro
+      - ./config:/config:ro
+    command: python scripts/run_worker.py
+
+  bot:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://newsbot:newsbot@postgres:5432/newsbot}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - secrets:/secrets
+      - pi_config:/root/.pi/agent
+      - ${PI_HOST_AUTH_DIR:-./pi-auth}:/host_pi_auth:ro
+      - ./config:/config:ro
+    command: python scripts/run_bot.py
+
+  model-init:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://newsbot:newsbot@postgres:5432/newsbot}
+    volumes:
+      - models_cache:/models
+    command: python scripts/download_embedding_model.py
+
+volumes:
+  postgres_data:
+  models_cache:
+  secrets:
+  pi_config:
+  config:
